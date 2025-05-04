@@ -1,34 +1,25 @@
-const express = require("express");
+const express = require('express');
+const axios = require('axios');
 const router = express.Router();
-const Prediction = require("../models/PredictionModel");
 
-// ➤ Get all AI Predictions
-router.get("/", async (req, res) => {
+// POST /api/predict
+router.post('/', async (req, res) => {
   try {
-    const predictions = await Prediction.find();
-    res.json(predictions);
+    const { features } = req.body;
+
+    const response = await axios.post('http://127.0.0.1:5001/predict', {
+      features: features,
+    });
+
+    res.json({
+      predicted_sales: response.data.predicted_sales,
+      predicted_food_waste: response.data.predicted_food_waste,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// ➤ Endpoint for AI Model to send predictions
-router.post("/", async (req, res) => {
-  const { date, food_predictions, staff_required, inventory_suggestions } = req.body;
-
-  // Create new Prediction document
-  const newPrediction = new Prediction({
-    date,
-    food_predictions,
-    staff_required,
-    inventory_suggestions,
-  });
-
-  try {
-    const savedPrediction = await newPrediction.save();
-    res.status(201).json(savedPrediction);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Prediction error:', error.message);
+    // Add this to see the full error in terminal
+    console.error(error.response?.data || error.toString());
+    res.status(500).json({ error: 'Prediction failed' });
   }
 });
 
