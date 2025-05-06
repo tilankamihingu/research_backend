@@ -1,94 +1,69 @@
 // routes/FoodAnalyticsRoutes.js
 const express = require("express");
+const axios = require("axios");
 const router = express.Router();
 
-// Simulated Data Source (Replace with DB queries later)
-const foodAnalyticsData = [
-  { name: "Kottu", sold: 420, waste: 45 },
-  { name: "Rice & Curry", sold: 540, waste: 60 },
-  { name: "String Hoppers", sold: 180, waste: 20 },
-  { name: "Fried Rice", sold: 250, waste: 15 },
-  { name: "Egg Hopper", sold: 120, waste: 40 }
+const dishes = [
+  "kottu",
+  "rice_and_curry",
+  "string_hoppers",
+  "fried_rice",
+  "egg_hopper"
 ];
 
+// Template input features for prediction
+function buildFeatures(dish, month) {
+  const features = {
+    staff_count: 10,
+    inventory_level: 100,
+    kottu_sold: 0, kottu_waste: 0,
+    rice_and_curry_sold: 0, rice_and_curry_waste: 0,
+    string_hoppers_sold: 0, string_hoppers_waste: 0,
+    fried_rice_sold: 0, fried_rice_waste: 0,
+    egg_hopper_sold: 0, egg_hopper_waste: 0,
+    month: month,
+    day_of_week: 3
+  };
+
+  features[`${dish}_sold`] = 100;
+  features[`${dish}_waste`] = 10;
+
+  return features;
+}
+
 router.post("/food", async (req, res) => {
-    const { month } = req.body; // or use req.query.month
-  
-    try {
-      // Later: Query MongoDB by month
-      // Example: { date: { $regex: `^2025-${month}` } }
-  
-      // Simulate filter for now:
-      const filteredData = foodAnalyticsData.map((item) => ({
-        ...item,
-        // Assume slight variation for simulation
-        sold: Math.floor(item.sold * (month / 12)),
-        waste: Math.floor(item.waste * (month / 12)),
-      }));
-  
-      const analytics = filteredData.map((item) => {
-        const costRatio = item.sold > 0 ? ((item.waste / item.sold) * 100).toFixed(2) : "0.00";
-        return {
-          name: item.name,
-          total_sold: item.sold,
-          total_waste: item.waste,
-          cost_ratio: parseFloat(costRatio)
-        };
+  const { month } = req.body;
+  if (!month) return res.status(400).json({ error: "Month is required" });
+
+  try {
+    const results = [];
+
+    for (const dish of dishes) {
+      const features = buildFeatures(dish, month);
+
+      const response = await axios.post("http://localhost:5001/predict", {
+        features,
       });
-  
-      res.json(analytics);
-    } catch (err) {
-      res.status(500).json({ error: "Failed to fetch analytics" });
+
+      const predicted_sales = response.data.predicted_sales;
+      const predicted_waste = response.data.predicted_food_waste;
+      const waste_ratio = predicted_sales > 0
+        ? ((predicted_waste / predicted_sales) * 100).toFixed(2)
+        : "0.00";
+
+      results.push({
+        name: dish.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+        predicted_sales: Math.round(predicted_sales),
+        predicted_waste: Math.round(predicted_waste),
+        waste_ratio: parseFloat(waste_ratio),
+      });
     }
-  });
-  
+
+    res.json(results);
+  } catch (err) {
+    console.error("❌ Error getting predictions:", err.message);
+    res.status(500).json({ error: "Failed to get AI predictions" });
+  }
+});
 
 module.exports = router;
-
-
-// const express = require("express");
-// const router = express.Router();
-// const FoodDailyData = require("../models/FoodDailyData");
-
-// router.post("/food", async (req, res) => {
-//   const { month } = req.body;
-//   if (!month) return res.status(400).json({ error: "Month is required" });
-
-//   try {
-//     const monthStr = month.toString().padStart(2, "0");
-
-//     // Fetch all food data for the selected month (e.g., "2025-12")
-//     const data = await FoodDailyData.find({
-//       date: { $regex: `^2025-${monthStr}` }
-//     });
-
-//     // Group by food item
-//     const foodMap = {};
-//     data.forEach((entry) => {
-//       if (!foodMap[entry.food]) {
-//         foodMap[entry.food] = { sold: 0, waste: 0 };
-//       }
-//       foodMap[entry.food].sold += entry.sold;
-//       foodMap[entry.food].waste += entry.waste;
-//     });
-
-//     // Format output
-//     const result = Object.entries(foodMap).map(([name, values]) => {
-//       const costRatio = values.sold > 0 ? ((values.waste / values.sold) * 100).toFixed(2) : "0.00";
-//       return {
-//         name,
-//         total_sold: values.sold,
-//         total_waste: values.waste,
-//         cost_ratio: parseFloat(costRatio)
-//       };
-//     });
-
-//     res.json(result);
-//   } catch (err) {
-//     console.error("❌ DB error:", err.message);
-//     res.status(500).json({ error: "Failed to fetch analytics" });
-//   }
-// });
-
-// module.exports = router;
-
