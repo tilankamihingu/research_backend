@@ -14,6 +14,7 @@ const inventoryRoutes = require("./routes/InventoryRoutes");
 const predictionRoutes = require("./routes/PredictionRoutes");
 const wasteRoutes = require("./routes/WasteRoutes");
 const forecastRoutes = require('./routes/ForecastRoutes');
+const foodAnalyticsRoutes = require("./routes/FoodAnalyticsRoutes");
 
 // Connect MongoDB
 mongoose
@@ -28,6 +29,7 @@ app.use("/api/inventory", inventoryRoutes);
 app.use("/api/predictions", predictionRoutes);
 app.use("/api/waste", wasteRoutes);
 app.use('/api/forecast', forecastRoutes);
+app.use("/api/analytics", foodAnalyticsRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
